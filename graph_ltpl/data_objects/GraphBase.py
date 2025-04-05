@@ -31,18 +31,18 @@ class GraphBase(object):
         28.09.2018
 
     """
-
+    #클래스 초기화 시, 모든 변수 저장하고 그래프 객체 생성
     def __init__(self,
                  lat_offset: float,
                  num_layers: int,
-                 refline: np.ndarray,
-                 normvec_normalized: np.ndarray,
-                 track_width_right: np.ndarray,
-                 track_width_left: np.ndarray,
-                 alpha: np.ndarray,
-                 vel_raceline: np.ndarray,
-                 s_raceline: np.ndarray,
-                 lat_resolution: float,
+                 refline: np.ndarray, #참조선좌표
+                 normvec_normalized: np.ndarray, 
+                 track_width_right: np.ndarray, #트랙너비
+                 track_width_left: np.ndarray, #트랙너비
+                 alpha: np.ndarray, #refline의 각 점과 raceline의 거리
+                 vel_raceline: np.ndarray, # raceline에서의 속도
+                 s_raceline: np.ndarray, #raceline을 따라 s 크기
+                 lat_resolution: float, # 그래프 노드의 lateral방향 분해능
                  sampled_resolution: float,
                  vel_decrease_lat: float,
                  veh_width: float,
@@ -51,11 +51,11 @@ class GraphBase(object):
                  md5_params: str,
                  graph_id: str,
                  glob_rl: np.ndarray,
-                 virt_goal_node: bool = True,
+                 virt_goal_node: bool = True, # 가상 목표 노드 사용 여부.
                  virt_goal_node_cost: float = 200.0,
                  min_plan_horizon: int or float = 200.0,
                  plan_horizon_mode: str = 'distance',
-                 closed: bool = True) -> None:
+                 closed: bool = True) -> None: # 트랙 닫혀 있는지 여부.
         """
         :param lat_offset:          allowed lateral offset parallel to race line per (long.) travelled meter [in m]
         :param num_layers:          total number of layers in the graph (along the whole track)
@@ -116,6 +116,9 @@ class GraphBase(object):
         self.closed = closed
 
         # calculate raceline
+        # alpha: offset(n배열)
+        # normal vector:(n개의 점, 각 점 nx, ny)
+        # refline을 중심으로 특정거리만큼 떨어진 새로운 경로
         self.raceline = refline + normvec_normalized * alpha[:, np.newaxis]
 
         # initialize graph-tool object
@@ -399,7 +402,8 @@ class GraphBase(object):
         # if plain (non-filtered) graph is not active, switch to it
         if self.__g_orig is not None:
             self.__g = self.__g_orig
-
+            
+        # 시작 노드와 종료 노드를 문자열로 변환하여 이름 지정.
         sn = str((start_layer, start_node))
         en = str((end_layer, end_node))
 
@@ -417,25 +421,25 @@ class GraphBase(object):
             edge_id = self.__g.get_eid(sn, en, error=False)
 
         # check for optional arguments
-        if 'spline_coeff' in kwargs:
+        if 'spline_coeff' in kwargs: # spline 계수 제공되면 edge에 저장.
             self.__g.es[edge_id]['spline_coeff'] = kwargs.get('spline_coeff')
 
-        if 'spline_x_y_psi_kappa' in kwargs:
-            # calculate length
+        if 'spline_x_y_psi_kappa' in kwargs: # spline 좌표 및 heading 곡률 정보 제공 시.
+            # calculate length(각 샘플 간 길이 계산)
             el_lengths = np.sqrt(np.sum(np.power(
                 np.diff(kwargs.get('spline_x_y_psi_kappa')[:, 0:2], axis=0), 2), axis=1))
 
-            # store total spline length
+            # store total spline length(총 spline 길이 저장)
             self.__g.es[edge_id]['spline_length'] = np.sum(el_lengths)
 
-            #  append zero to el length array, in order to reach equal array length
+            #  append zero to el length array, in order to reach equal array length(길이 배열에 0을 추가하여 길이를 맞춤.)
             el_lengths = np.append(el_lengths, 0)
 
-            # generate proper formatted numpy array containing spline data
+            # generate proper formatted numpy array containing spline data(spline 데이터 저장)
             self.__g.es[edge_id]['spline_param'] = \
                 np.column_stack((kwargs.get('spline_x_y_psi_kappa'), el_lengths))
 
-        if 'offline_cost' in kwargs:
+        if 'offline_cost' in kwargs: # edge offline cost가 제공되면 저장.
             self.__g.es[edge_id]['offline_cost'] = kwargs.get('offline_cost')
 
     # "update_edge" equals the function "add_edge"
@@ -461,10 +465,11 @@ class GraphBase(object):
             * **spline_length** -   length of the spline
 
         """
-
+        
         sn = str((start_layer, start_node))
         en = str((end_layer, end_node))
 
+        # 그래프에서 해당 엣지가 이미 존재하는지 확인
         edge_id = self.__g.get_eid(sn, en)  # if we want to catch errors, add "error=False" and check for returned "-1"
         edge = self.__g.es(edge_id)
 

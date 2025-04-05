@@ -8,11 +8,11 @@ import graph_ltpl
 import trajectory_planning_helpers as tph
 
 
-def gen_edges(state_pos: np.ndarray,
-              graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
-              stepsize_approx: float,
-              min_vel_race: float = 0.0,
-              closed: bool = True) -> None:
+def gen_edges(state_pos: np.ndarray, # 노드의 x, y, 방향 포함한 2D 배열
+              graph_base: graph_ltpl.data_objects.GraphBase.GraphBase, # 그래프 정보를 저장하는 객체(data_objects폴더 안 graphbase.py 안 GraphBse class로 하는)
+              stepsize_approx: float, # spline 샘플링할 때의 간격
+              min_vel_race: float = 0.0, # 최소 허용 속도 비율(0~1) 
+              closed: bool = True) -> None: # track이 닫힌 루프 형태인지 확인.
     """
     Generate edges for a given node skeleton.
 
@@ -35,16 +35,16 @@ def gen_edges(state_pos: np.ndarray,
     # PREPARE DATA -----------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
 
-    if graph_base.lat_offset <= 0:
+    if graph_base.lat_offset <= 0: #오프셋이 0 이하이지 않도록 검사
         raise ValueError('Requested to small lateral offset! A lateral offset larger than zero must be allowed!')
 
     # ------------------------------------------------------------------------------------------------------------------
     # DEFINE EDGES AND SAMPLE SPLINE COEFFICIENTS ----------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
-
+    # raceline: refline을 중심으로 특정거리만큼 떨어진 새로운 경로
     # calculate splines for race-line
-    raceline_cl = np.vstack((graph_base.raceline, graph_base.raceline[0]))
-    x_coeff_r, y_coeff_r, _, _ = tph.calc_splines.calc_splines(path=raceline_cl)
+    raceline_cl = np.vstack((graph_base.raceline, graph_base.raceline[0])) # 닫힌 경로를 위해 레이싱 라인의 첫 번째 점을 마지막에 추가.
+    x_coeff_r, y_coeff_r, _, _ = tph.calc_splines.calc_splines(path=raceline_cl) # 주어진 경로(raceline_cl)를 기반으로 x, y축 spline 계수 반환
 
     tic = time.time()
 
