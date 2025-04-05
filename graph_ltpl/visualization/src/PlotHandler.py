@@ -806,7 +806,7 @@ class EventHandler:
                 pos, psi, raceline, children, _ = graph_base.get_node_info(layer=node[0][0],
                                                                            node_number=node[0][1],
                                                                            return_child=True)
-
+                # 추가한곳
                 # pos를 (x, y)로 분리하여 리스트로 전달
                 if isinstance(pos, np.ndarray) and pos.shape == (2,):  # NumPy 배열이고 길이가 2인지 확인
                     x, y = pos
