@@ -31,7 +31,7 @@ Furthermore, logs and advanced vehicle dynamics are not considered.
 # ----------------------------------------------------------------------------------------------------------------------
 
 # top level path (module directory)
-toppath = os.path.dirname(os.path.realpath(__file__))
+toppath = os.path.dirname(os.path.realpath(__file__)) # 현재 파이썬이 위치한 디렉터리의 절대 경로로
 sys.path.append(toppath)
 
 track_param = configparser.ConfigParser()
