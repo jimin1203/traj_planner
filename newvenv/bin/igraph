@@ -1,0 +1,4 @@
+#!/home/jimin1203/misys/traj_planner/newvenv/bin/python3
+"""Small script to execute the igraph command line interface"""
+from igraph.app.shell import main
+main()

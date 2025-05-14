@@ -219,19 +219,23 @@ class OnlineTrajectoryHandler(object):
             return in_track, cor_heading
             # raise ValueError("VEHICLE SEEMS TO BE OUT OF TRACK!")
 
+        # 현재 차량 위치에서 가장 가까운 노드 찾기
         # -- SELECT INITIAL PLANNING NODE ------------------------------------------------------------------------------
         closest_nodes, distance = self.__graph_base.get_closest_nodes(pos=start_pos, limit=1)
-
+        # print("closest_nodes: ", closest_nodes)
         # determine goal node two layers ahead
+        # 목표 노드는 현 레이어에서 2개 레이어 앞에 있는 노드.
+        # print("self.__graph_base.num_layers: ", self.__graph_base.num_layers)
         goal_layer = (closest_nodes[0][0] + 2) % (self.__graph_base.num_layers - 1)
         goal_node = self.__graph_base.raceline_index[goal_layer]
-
+        # print("goal_layer: ", goal_layer)
+        # print("goal_node: ", goal_node)
         self.__start_node = [goal_layer, goal_node]
 
         # extract cartesian information of goal node
         end_pos, end_heading, _, _, _ = self.__graph_base.get_node_info(layer=goal_layer,
                                                                         node_number=goal_node)
-        heading_diff = abs(start_heading - end_heading)
+        heading_diff = abs(start_heading - end_heading) #  처음 heading과 목표 heading의 차이
         if heading_diff > np.pi:
             heading_diff = abs(2 * np.pi - heading_diff)
         if heading_diff > max_heading_offset:
@@ -241,21 +245,24 @@ class OnlineTrajectoryHandler(object):
             # raise ValueError("VEHICLE HEADING MISMATCH (TRACK <-> VEHICLE)!")
 
         # calculate spline to start node
+        # 초기 위치에서 다음 노드까지 spline 계산
         x_coeff, y_coeff, _, _ = tph.calc_splines.calc_splines(path=np.vstack((start_pos, end_pos)),
                                                                psi_s=start_heading,
                                                                psi_e=end_heading)
-
+        # 위에서 구한 스플라인 경로를 일정 간격으로 샘플링링
         path, inds, t_values, _ = tph.interp_splines.\
             interp_splines(coeffs_x=x_coeff,
                            coeffs_y=y_coeff,
                            stepsize_approx=self.__graph_base.sampled_resolution,
                            incl_last_point=True)
-
+        # print("path: ", path)
+        # print("inds: ", inds)
+        # print("t_values: ", t_values)
         psi, kappa = tph.calc_head_curv_an.calc_head_curv_an(coeffs_x=x_coeff,
                                                              coeffs_y=y_coeff,
                                                              ind_spls=inds,
                                                              t_spls=t_values)
-
+        # 샘플링한 점들 사이의 거리(유클리드드)
         el_lengths = np.sqrt(np.sum(np.power(np.diff(path, axis=0), 2), axis=1))
 
         # set passed variables
@@ -265,7 +272,9 @@ class OnlineTrajectoryHandler(object):
         self.__last_action_set_coeff = {act_id: [np.hstack((x_coeff, y_coeff))]}
         self.__last_action_set_path_param = {act_id: [np.column_stack((path, psi, kappa, np.append(el_lengths, 0)))]}
         self.__last_action_set_nodes = {act_id: [[[None, None], self.__start_node]]}
-        self.__last_action_set_node_idx = {act_id: [[0, path.shape[0] - 1]]}
+        self.__last_action_set_node_idx = {act_id: [[0, path.shape[0] - 1]]} # path는 샘플링한 점의 (x, y) 좌표
+        # print("self.__last_action_set_nodes: ", self.__last_action_set_nodes) # [2, 1]
+        # print("self.__last_action_set_node_idx: ", self.__last_action_set_node_idx) # [0, 24]
 
         return in_track, cor_heading
 
@@ -289,6 +298,12 @@ class OnlineTrajectoryHandler(object):
     def calc_paths(self,
                    action_id_sel: str,
                    idx_sel_traj: int) -> tuple:
+        
+        '''
+        차량이 이미 따라가고 있는 경로에서 split point를 찾아 이전 경로의 일부는 그대로 두고 
+        새로운 경로 탐색을 위한 start_node부터 다시 경로를 이어붙여 반환하는 함수
+        '''
+
         """
         Determine a proper split point on the last generated trajectory. The part of the trajectory until the split
         point is kept constant, since the vehicle continues to travel on the path during calculation of the next point.
@@ -313,16 +328,16 @@ class OnlineTrajectoryHandler(object):
         if self.__action_id_forced is not None:
             action_id_sel = self.__action_id_forced
             self.__action_id_forced = None
-
+        # print("action_id_sel: ", action_id_sel)
         # --------------------------------------------------------------------------------------------------------------
         # - Status identifiers -----------------------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
         const_path_seg_exists = (self.__last_action_set_path_param is not None
-                                 and action_id_sel in self.__last_action_set_path_param.keys())
+                                 and action_id_sel in self.__last_action_set_path_param.keys()) # 이전 경로가 유효한지.
         planned_once = self.__last_path_timestamp is not None
         valid_solution_last_step = (planned_once and const_path_seg_exists
                                     and self.__last_bp_action_set[action_id_sel][idx_sel_traj].shape[0] > 2)
-
+        # print("valid_solution_last_step: ", valid_solution_last_step) # 맨처음만 false
         # --------------------------------------------------------------------------------------------------------------
         # - Store last straight or follow trajectory as backup plan ----------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
@@ -330,7 +345,7 @@ class OnlineTrajectoryHandler(object):
             temp_id = "straight"
             if "follow" in self.__last_action_set_nodes.keys():
                 temp_id = "follow"
-
+            # 유효한 경로가 존재할 때, 맨 앞에 있는 것만 추출해냄.
             self.__backup_coeff = self.__last_action_set_coeff[temp_id][0]
             self.__backup_node_idx = self.__last_action_set_node_idx[temp_id][0]
             self.__backup_nodes = self.__last_action_set_nodes[temp_id][0]
@@ -348,14 +363,14 @@ class OnlineTrajectoryHandler(object):
         # --------------------------------------------------------------------------------------------------------------
         # If already generated (and found) a local trajectory in a previous time-step, estimate the expected pose on it
         # (using last calc duration) -> select next node as start for graph-search and leave initial part constant
-        if planned_once and valid_solution_last_step:
+        if planned_once and valid_solution_last_step: 
             # extract calculation time for last iteration
-            calc_time = time.time() - self.__last_path_timestamp
+            calc_time = time.time() - self.__last_path_timestamp # 차량이 이전 경로-현재까지 이동한 시간
             self.__last_path_timestamp = time.time()
 
             # warn if calc time exceeds threshold
             if calc_time > self.__calc_time_warn_thr:
-                self.__log.warning("Warning: One trajectory generation iteration took more than %.3fs (Actual "
+                self.__log.warning("Warning: One trajectory generation iteration took more than %.3fs (Actual " # 실행하면 나오는 주로 나오던 멘트
                                    "calculation time: %.3fs)" % (self.__calc_time_warn_thr, calc_time))
             self.__log.debug("Update frequency: %.2f Hz" % (1.0 / max(calc_time, 0.001)))
 
@@ -369,7 +384,7 @@ class OnlineTrajectoryHandler(object):
             # divide element lengths by the corresponding velocity in order to obtain a time approximation
             s_past = np.diff(self.__last_bp_action_set[action_id_sel][idx_sel_traj][1:, 0])
             v_past = self.__last_bp_action_set[action_id_sel][idx_sel_traj][1:-1, 5]
-            t_approx = np.divide(s_past, v_past, out=np.full(v_past.shape[0], np.inf), where=v_past != 0)
+            t_approx = np.divide(s_past, v_past, out=np .full(v_past.shape[0], np.inf), where=v_past != 0)
 
             # force constant trajectory for a certain amount of time (here: upper bounded calculation time)
             t_const = min(calc_time_avg * self.__calc_time_safety, 0.5)
@@ -379,8 +394,10 @@ class OnlineTrajectoryHandler(object):
 
             # Get first node after "next_idx_corr"
             last_node_idx = self.__last_action_set_node_idx[action_id_sel][idx_sel_traj]
+            # print("last_node_idx: ", last_node_idx)
             node_coords = self.__last_action_set_path_param[action_id_sel][idx_sel_traj][last_node_idx, 0:2]
             predicted_pos = self.__last_bp_action_set[action_id_sel][idx_sel_traj][next_idx, 1:3]
+            # predicted_pos에 가까운 노드 인덱스 찾는 과정.
             start_node_idx = graph_ltpl.helper_funcs.src.get_s_coord.get_s_coord(ref_line=node_coords,
                                                                                  pos=predicted_pos,
                                                                                  only_index=True)[1][1]
@@ -391,28 +408,36 @@ class OnlineTrajectoryHandler(object):
 
             # get nodes of last solution (used to reduce the cost on those segments)
             last_solution_nodes = self.__last_action_set_nodes[action_id_sel][idx_sel_traj][start_node_idx:]
+        # 맨 처음 online 단계 시작할 때
         else:
-            self.__last_path_timestamp = time.time()
+            self.__last_path_timestamp = time.time() # 다음 루프부터 planned_once가 True가 됨.
             last_solution_nodes = None
 
             if const_path_seg_exists and self.__start_node in self.__last_action_set_nodes[action_id_sel][idx_sel_traj]:
                 start_node_pos = self.__graph_base.get_node_info(layer=self.__start_node[0],
                                                                  node_number=self.__start_node[1])[0]
+                # 이전 경로에서 start_node pos에 가장 가까운 노드 찾음.
                 loc_path_start_idx = graph_ltpl.helper_funcs.src.closest_path_index.\
                     closest_path_index(path=self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:, 0:2],
-                                       pos=start_node_pos)[0][0]
+                                       pos=start_node_pos)[0][0] 
+                # print("loc_path_start_idx: ", loc_path_start_idx) # 24
+                # print(self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:, 0:2][24]) # [2, 1]부터 실질적인 local planning 시작
+                # 리스트에서 self.__start_node와 정확히 일치하는 노드가 몇 번째에 있는지 찾아서, 그 인덱스를 반환
                 start_node_idx = self.__last_action_set_nodes[action_id_sel][idx_sel_traj].index(self.__start_node)
+                # print("start_node_idx: ", start_node_idx) # 1 (리스트의 두 번째 위치)
+                # 경로 재계산 시 어디서부터 이어서 경로를 사용할지 알 수 있다.
             else:
                 loc_path_start_idx = 0
                 start_node_idx = 0
-
+        # start node index, loc_path_start_idx를 정의함 -> 이후 경로 이어붙일 때 사용
         # --------------------------------------------------------------------------------------------------------------
         # - Main online callback for trajectory planning (extract and prepare graph segment and exec. graph search) ----
         # --------------------------------------------------------------------------------------------------------------
         const_path_seg = None
         if const_path_seg_exists:
-            const_path_seg = self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:loc_path_start_idx + 1, :]
-
+            # 이전 경로~시작 노드까지의 모든 샘플링된 점의 파라미터 
+            const_path_seg = self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:loc_path_start_idx + 1, :] 
+        
         action_set_nodes, action_set_node_idx, action_set_coeff, action_set_path_param, action_set_red_len, \
             self.__closest_obj_index = (graph_ltpl.online_graph.src.main_online_path_gen.
                                         main_online_path_gen(graph_base=self.__graph_base,
@@ -436,12 +461,14 @@ class OnlineTrajectoryHandler(object):
                 # if a solution is found (else keep member variables from last iteration)
                 if const_path_seg_exists:
                     # for every path (if multiple path solutions activated)
-                    for i in range(len(action_set_nodes[action_id])):
+                    # print(action_set_nodes)
+                    for i in range(len(action_set_nodes[action_id])): # 모든 경로 후보에 대하여 이어붙이기 작업
                         if loc_path_start_idx > 0:
                             # path parameters
+                            # print(f"action_set_path_param[action_id][i]: {action_set_path_param[action_id][i]}")
                             action_set_path_param[action_id][i] = np.concatenate((
                                 self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:loc_path_start_idx, :],
-                                action_set_path_param[action_id][i]))
+                                action_set_path_param[action_id][i])) # 원래 있던 path_param에 이어붙이기.
 
                             # element length
                             # Edge case: if cut index exactly at end of last planned action set member (length from
@@ -540,7 +567,7 @@ class OnlineTrajectoryHandler(object):
         # --------------------------------------------------------------------------------------------------------------
         # - Status identifiers -----------------------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
-        planned_once = self.__last_bp_action_set is not None
+        planned_once = self.__last_bp_action_set is not None # 경로 플래닝이 수행된 적이 있었는지 확인.
         valid_solution_last_step = (planned_once and action_id_sel in self.__last_bp_action_set.keys()
                                     and np.size(self.__last_bp_action_set[action_id_sel][idx_sel_traj], axis=0) > 0)
         valid_solution_this_step = len(list(self.__last_action_set_node_idx.keys())) > 0
@@ -549,9 +576,9 @@ class OnlineTrajectoryHandler(object):
         # - Get cut index and extract velocity -------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
         if planned_once and valid_solution_last_step:
-            last_path = self.__last_bp_action_set[action_id_sel][idx_sel_traj][:, 1:3]
-            s_last_path = self.__last_bp_action_set[action_id_sel][idx_sel_traj][:, 0]
-
+            last_path = self.__last_bp_action_set[action_id_sel][idx_sel_traj][:, 1:3] # 경로의 (x, y) 좌표
+            s_last_path = self.__last_bp_action_set[action_id_sel][idx_sel_traj][:, 0] # 경로의 s 좌표
+            # print("s_last_path: ", s_last_path)
             # get cut index for selected trajectory (2 neighboring points on trajectory candidate rel. to "pos_est")
             idx_nb = graph_ltpl.helper_funcs.src.get_s_coord. \
                 get_s_coord(ref_line=last_path,
@@ -559,30 +586,36 @@ class OnlineTrajectoryHandler(object):
                             s_array=s_last_path,
                             only_index=True)[1]
             cut_index = idx_nb[0]
+            # print("cut_index: ", cut_index)
 
-            # -- calculate velocity cut index (including delay compensation) -------------------------------------------
-            # get last index below delay estimate
-            s_past = np.diff(self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index:, 0])
-            v_past = self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index:-1, 5]
-            t_approx = np.divide(s_past, v_past, out=np.full(v_past.shape[0], np.inf), where=v_past != 0)
+            # -- calculate velocity cut index (including delay compensation) ------------------------------------------- 
+            # get last index below delay estimate 
+            s_past = np.diff(self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index:, 0]) # 차량의 현재 위치 이후 구간별 길이 
+            v_past = self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index:-1, 5] # 차량의 현재 위치 이후 구간별 속도 
+            t_approx = np.divide(s_past, v_past, out=np.full(v_past.shape[0], np.inf), where=v_past != 0)  # 각 구간에서 차량이 이동하는 데 걸리는 시간 
 
             # find last cumulative time value being below delay estimate
+            # (np.cumsum(t_approx) <= self.__delaycomp).argmin(): 누적 이동 시간이 지연시간보다 큰 첫 번째 인덱스 
             vel_idx = min((np.cumsum(t_approx) <= self.__delaycomp).argmin() + 1, v_past.shape[0] - 1)
-
+            # delay 시간 이후의 속도, 가속도, 속도 프로파일 추출 
             vel_plan = self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index + vel_idx, 5]
             acc_plan = self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index + vel_idx, 6]
             vel_course = self.__last_bp_action_set[action_id_sel][idx_sel_traj][cut_index:cut_index + vel_idx, 5]
-
+            # vel_idx-> path planning의 시작점 설정. 
             # add to last cut index, since bp_action_sets started at actual position of vehicle
+            # 경로의 시작점을 수정 
             cut_index_pos = self.__last_cut_idx + cut_index
 
             # Check on which spline segment position estimate is located (layer_index)
             if valid_solution_this_step:
+                # 이전 path에서 어느 layer와 segment에 속하는지. 
                 action_id_tmp = list(self.__last_action_set_node_idx.keys())[0]
+                # 현재 위치가 속한 layer 계산 
                 cut_layer = max(np.argmin(np.array(
                     self.__last_action_set_node_idx[action_id_tmp][0]) < cut_index_pos) - 2, 0)
 
                 # Get corresponding coordinate cut index
+                # 해당 레이어의 시작 인덱스 계산 ? 
                 cut_index_layer = self.__last_action_set_node_idx[action_id_tmp][0][cut_layer]
             else:
                 cut_layer = 0
@@ -597,7 +630,7 @@ class OnlineTrajectoryHandler(object):
 
         # update cut index memory
         self.__last_cut_idx = cut_index_pos - cut_index_layer
-
+        # delay이후 도달할 경로 위치.
         return cut_index_pos, cut_layer, vel_plan, vel_course, acc_plan
 
     def calc_vel_profile(self,
@@ -630,7 +663,7 @@ class OnlineTrajectoryHandler(object):
         :param ax_max_machines: velocity dependent maximum acceleration allowed by the machine (given by BHPL)
         :param safety_d:        safety distance in meters to a (potential) lead vehicle (bumper to bumper)
         :param gg_scale:        gg-scale in range [0.0, 1.0] applied to [ax_max, ay_max]
-        :param local_gg:        two available options:
+        :param local_gg:        two available options: 
 
                                 * LOCATION DEPENDENT FRICTION: dict of lat/long acceleration limits along the paths,
                                   each path coordinate [self.__last_action_set_path_param] must be represented by a row
@@ -664,11 +697,13 @@ class OnlineTrajectoryHandler(object):
                 for i in range(len(self.__last_action_set_path_param[action_id])):
                     local_gg[action_id].append(np.ones((self.__last_action_set_path_param[action_id][i].shape[0], 2))
                                                * gg_bounds)
+                # print("self.__last_action_set_path_param[action_id]: ", len(self.__last_action_set_path_param[action_id])) # 1
+                # print("local_gg: ", local_gg) # [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5]...]
 
-        # update trajectory base-ID
+        # update trajectory base-ID(이전과 겹치지 않는 ID로 설정정)
         self.__traj_base_id += 10
 
-        # trajectory generation time-stamp (used across all modules)
+        # trajectory generation time-stamp (used across all modules)   
         traj_time_stamp = time.time()
 
         # provide updated dynamic vehicle parameters to velocity planner classes
@@ -705,7 +740,7 @@ class OnlineTrajectoryHandler(object):
                 # cut path parameters and local gg for velocity planner (at current pose)
                 action_set_path_param_vel[action_id].append(
                     self.__last_action_set_path_param[action_id][i][cut_index_pos:, :])
-
+                # 현재 위치 이후만 남기기기
                 action_set_path_param_gg[action_id].append(local_gg[action_id][i][cut_index_pos:, :])
 
                 # Get coordinate cut index from cut_layer
@@ -741,7 +776,7 @@ class OnlineTrajectoryHandler(object):
 
                     # calculate s coordinates along given path
                     s = np.concatenate(([0], np.cumsum(action_set_path_param_vel[action_id][i][:-1, 4])))
-
+                    # 이전 속도와 현재 구간을 이어주기위한 prefix 
                     # -- DETERMINE VELOCITY PROFILE PREFIX -------------------------------------------------------------
                     if self.__vp_fb is not None:
                         vx_prefix, pref_idx_add, vel_start = self.__vp_fb.\
@@ -750,7 +785,9 @@ class OnlineTrajectoryHandler(object):
                                                kappa=action_set_path_param_vel[action_id][i][vel_idx:, 3],
                                                el_lengths=action_set_path_param_vel[action_id][i][vel_idx:-1, 4],
                                                loc_gg=action_set_path_param_gg[action_id][i][vel_idx:, :])
-
+                        # vx_prefix: 수정한 속도 리스트 
+                        # pref_idx_add: prefix로 추가된 경로점 개수
+                        # vel_start: 
                         pref_idx = vel_idx + pref_idx_add
                     else:
                         # No prefix required for other planners, copy plain values

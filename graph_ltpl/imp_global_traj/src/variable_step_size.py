@@ -43,9 +43,9 @@ def variable_step_size(kappa: np.ndarray,
         if (cur_dist + dist_val) > next_dist:
             idx_array.append(idx)
 
-            if abs(kappa[idx]) < curve_th:
-                next_dist += d_straight
-            else:
+            if abs(kappa[idx]) < curve_th: # 직선 구간으로 간주
+                next_dist += d_straight 
+            else: # 곡선 구간으로 간주주
                 next_dist += d_curve
             next_dist_min = cur_dist + d_curve
 

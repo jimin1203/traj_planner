@@ -50,13 +50,13 @@ def main_offline_callback(globtraj_param_path: str,
     # ------------------------------------------------------------------------------------------------------------------
     # SETUP GRAPH ------------------------------------------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
-
+    print("Graph generation started...")
     new_base_generated = False
     graph_base = None
-    # get the MD5-hash of all config files (fused together, since we want to recalculate whenever any file changed)
+    # MD5 해시 계산. 파일의 변경 여부를 확인하는데 사용. 변경되면, 새 그래프 생성.
     calculated_md5 = md5(globtraj_param_path) + md5(graph_off_config_path)
 
-    # If legible, load graph from file (else generate)
+    # 기존 그래프가 있다면 load
     if not force_recalc and osfuncs.isfile(graph_store_path):
         f = open(graph_store_path, 'rb')
         graph_base = pickle.load(f)
@@ -64,7 +64,7 @@ def main_offline_callback(globtraj_param_path: str,
         logging.getLogger("local_trajectory_logger").debug("Loaded database with " + str(len(graph_base.get_nodes()))
                                                            + " node and " + str(len(graph_base.get_edges()))
                                                            + " edges from file...")
-
+    # 새 그래프 생성 조건 확인.
     if force_recalc or graph_base is None or calculated_md5 != graph_base.md5_params:
         new_base_generated = True
         if force_recalc:
@@ -72,7 +72,7 @@ def main_offline_callback(globtraj_param_path: str,
         if graph_base is not None and calculated_md5 is not graph_base.md5_params:
             print("MD5-Sum of any param-file does not match the one in the graph object! Triggered recalculation!")
 
-        # load graph configuration
+        # 그래프 설정 파일 로드
         graph_config = configparser.ConfigParser()
         if not graph_config.read(graph_off_config_path):
             raise ValueError('Specified graph config file does not exist or is empty!')
@@ -90,14 +90,17 @@ def main_offline_callback(globtraj_param_path: str,
         # determine if track is closed or unclosed (check if end and start-point are close together)
         closed = (np.hypot(xy[0, 0] - xy[-1, 0], xy[0, 1] - xy[-1, 1])
                   < graph_config.getfloat('LATTICE', 'closure_detection_dist'))
+        # print(f"closed: {closed}")
         if closed:
             logging.getLogger("local_trajectory_logger").debug("Input line is interpreted as closed track!")
 
             # close line
             glob_rl = np.column_stack((s, np.vstack((raceline_params, raceline_params[0, :]))))
+            
         else:
             logging.getLogger("local_trajectory_logger").debug("Input line is interpreted as _unclosed_ track!")
             glob_rl = np.column_stack((s[:-1], raceline_params))
+            
 
         # based on curvature get index array for selection of normal vectors and corresponding raceline parameters
         idx_array = graph_ltpl.imp_global_traj.src.variable_step_size. \

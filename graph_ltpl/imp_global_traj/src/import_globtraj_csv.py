@@ -32,7 +32,7 @@ def import_globtraj_csv(import_path: str) -> tuple:
     csv_data_temp = np.loadtxt(import_path, delimiter=';')
 
     # get refline
-    refline = csv_data_temp[:-1, 0:2]
+    refline = csv_data_temp[:-1, 0:2] # 마지막 행을 제외한 모든 행, 1~2번째 열까지지
 
     # get widths right/left
     width_right = csv_data_temp[:-1, 2]
@@ -58,4 +58,9 @@ def import_globtraj_csv(import_path: str) -> tuple:
 
 # testing --------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
+    import_path = "/home/jimin1203/misys/traj_planner/inputs/traj_ltpl_cl/traj_ltpl_cl_berlin.csv"
+    import_data = import_globtraj_csv(import_path)
+    print(import_data)
+    print(import_data[1].shape)
+
     pass

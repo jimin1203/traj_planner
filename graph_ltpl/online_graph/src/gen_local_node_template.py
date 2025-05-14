@@ -152,6 +152,7 @@ def gen_local_node_template(graph_base: graph_ltpl.data_objects.GraphBase.GraphB
     graph_base.activate_filter(applied_filter="planning_range")
 
     # --  REDUCE COST ALONG PREVIOUS PATH (if provided) ----------------------------------------------------------------
+    # 이전 경로에의 비용 감소 -> 새로운 경로 탐색 시 우선적 선택 유도도
     if last_solution_nodes is not None:
         for i in range(min(len(last_solution_nodes) - 1, len(w_last_edges))):
             graph_base.factor_edge_cost(start_layer=last_solution_nodes[i][0],
@@ -166,6 +167,7 @@ def gen_local_node_template(graph_base: graph_ltpl.data_objects.GraphBase.GraphB
     closest_obj_layer_dist = None
     closest_obj_index = None
     closest_obj_node = None
+    # 장애물과의 충돌을 방지하기 위한 그래프 엣지 비활성화.
     for idx, vehicle in enumerate(obj_veh):
         # vehicle
         intersecting_edges, obj_layer = graph_ltpl.online_graph.src.get_intersec_edges. \
@@ -211,7 +213,7 @@ def gen_local_node_template(graph_base: graph_ltpl.data_objects.GraphBase.GraphB
             np.array(pos)[:, 1] - obj_veh[closest_obj_index].get_pos()[1], 2)
 
         closest_obj_node[1] = np.argmin(distances2)
-
+    # 충돌 가능성이 있는 엣지를 비활성화.
     # Init and activate edge filter with disabled edges (objects) (Note: This list may contain duplicates!)
     graph_base.init_edge_filter(disabled_edges=edges,
                                 applied_filter="default",
@@ -220,7 +222,7 @@ def gen_local_node_template(graph_base: graph_ltpl.data_objects.GraphBase.GraphB
     graph_base.activate_filter()
 
     return end_layer, closest_obj_index, closest_obj_node
-
+    # return 탐색 종료 레이어, 가장 가까운 장애물의 인덱스, 가장 가까운 장애물에 해당하는 노드드
 
 # testing --------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":

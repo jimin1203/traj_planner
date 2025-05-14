@@ -198,7 +198,7 @@ class Graph_LTPL(object):
         :param veh_param_mass:           vehicle mass in kg
 
         """
-
+        # 오프라인 그래프를 생성하거나 기존 그래프를 불러와서 new_base_gen에 새로 생성한건지 여부 저장.
         self.__graph_base, new_base_gen = graph_ltpl.offline_graph.src.main_offline_callback. \
             main_offline_callback(globtraj_param_path=self.__path_dict['globtraj_input_path'],
                                   graph_off_config_path=self.__path_dict['ltpl_offline_param_path'],
@@ -228,7 +228,7 @@ class Graph_LTPL(object):
             veh_param_dragcoeff=veh_param_dragcoeff,
             veh_param_mass=veh_param_mass)
 
-        # -- INIT OBJECT LIST INTERFACE --------------------------------------------------------------------------------
+        # -- INIT OBJECT LIST INTERFACE(좌우 트랙 경계 좌표 설정) ----------------------------------------------------------------------------
         self.__obj_list_handler.set_track_data(refline=self.__graph_base.refline,
                                                normvec_normalized=self.__graph_base.normvec_normalized,
                                                w_left=self.__graph_base.track_width_left,
@@ -314,12 +314,13 @@ class Graph_LTPL(object):
             * **path_dict** -   dict holding paths for each of the available action sets {'straight': np([...]), ...}
 
         """
-
+        # 입력받은 것들 업데이트
         self.__prev_action_id = prev_action_id
         self.__prev_traj_idx = prev_traj_idx
+        # print("prev_traj_idx: ", self.__prev_traj_idx) # 계속 0
 
-        # update internal object handles
-        self.__obj_veh = self.__obj_list_handler.process_object_list(object_list=object_list)
+        # update internal object handles(트랙 외부 거르고 예측까지 포함된 list 리턴)
+        self.__obj_veh = self.__obj_list_handler.process_object_list(object_list=object_list) 
 
         # update zones
         if blocked_zones is not None:
@@ -378,10 +379,14 @@ class Graph_LTPL(object):
 
         # -- DETERMINE CUT INDEX BASED ON ACTUAL POSITION AND LAST PLANNED TRAJECTORY ----------------------------------
         self.__cut_index_pos, cut_layer, vel_plan, vel_course, acc_plan = \
-            self.__oth.get_ref_idx(action_id_sel=self.__prev_action_id,
+            self.__oth.get_ref_idx(action_id_sel=self.__prev_action_id, # 차량의 현재 위치가 trajectory의 어디에 해당하는지. 그 위치에서의 속도/가속도 등 정보 추출.
                                    idx_sel_traj=self.__prev_traj_idx,
                                    pos_est=self.__pos_est)
-
+        # print(f"self.__prev_action_id: {self.__prev_action_id}")
+        # print("prev_traj_idx: ", self.__prev_traj_idx)
+        # print("cut_layer: ", cut_layer)
+        # print("cut_index_pos: ", self.__cut_index_pos)
+        # print("-----------------------------")
         # -- PREPARE TRAJECTORIES FOR EXPORT (trim to pos and calculate velocity profile) ------------------------------
         self.__action_set, self.__action_set_id, self.__traj_time, self.__local_trajectories = \
             self.__oth.calc_vel_profile(cut_index_pos=self.__cut_index_pos,

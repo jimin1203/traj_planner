@@ -107,7 +107,7 @@ class ObjectListInterface(object):
                             on_track = graph_ltpl.online_graph.src.check_inside_bounds.\
                                 check_inside_bounds(bound1=self.__bound1,
                                                     bound2=self.__bound2,
-                                                    pos=[object_el['X'], object_el['Y']])
+                                                    pos=[object_el['X'], object_el['Y']]) # 차량이 내부에 있는지 확인
 
                         if on_track:
                             # add prediction
@@ -125,6 +125,7 @@ class ObjectListInterface(object):
                                 pred = np.zeros((1, 2))
                                 pred[0, 0] = object_el['X'] - np.sin(object_el['theta']) * object_el['v'] * dt
                                 pred[0, 1] = object_el['Y'] + np.cos(object_el['theta']) * object_el['v'] * dt
+                                
 
                             # for now: circle contains whole vehicle
                             veh_obj = VehObject(id_in=object_el['id'],
@@ -193,7 +194,7 @@ class ObjectListInterface(object):
             if zone_id in last_ids:
                 last_ids_idx = last_ids.index(zone_id)
                 new_zone_objects.append(self.__object_zones[last_ids_idx])
-
+                print(last_ids_idx)
                 # remove zone from last ids (mark as processed)
                 last_ids[last_ids_idx] = None
             else:

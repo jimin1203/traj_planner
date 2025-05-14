@@ -104,7 +104,7 @@ while True:
 
     # get simple object list (one vehicle driving around the track)
     obj_list = obj_list_dummy.get_objectlist()
-
+    # print("Object list: ", obj_list)
     # -- CALCULATE PATHS FOR NEXT TIMESTAMP ----------------------------------------------------------------------------
     ltpl_obj.calc_paths(prev_action_id=sel_action,
                         object_list=obj_list,

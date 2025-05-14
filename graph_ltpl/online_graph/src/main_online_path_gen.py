@@ -65,6 +65,8 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
     # - Handle objects within the planning horizon ---------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
     # Generate local node template for the current action_set (block edges occupied by objects)
+    # 현재 planning range 내에 장애물이 있으면 그래프 상에서 해당 노드/엣지를 차단하고, 경로 생성을 위한 템플릿 생성.
+    # 경로 탐색을 위한 마지막 레이어, 장애물의 인덱스, 장애물이 위치한 노드의 정보를 가져옴.
     end_layer, closest_obj_index, closest_obj_node = graph_ltpl.online_graph.src.gen_local_node_template.\
         gen_local_node_template(graph_base=graph_base,
                                 start_node=start_node,
@@ -72,6 +74,7 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
                                 obj_zone=obj_zone,
                                 last_solution_nodes=last_solution_nodes,
                                 w_last_edges=w_last_edges)
+    # print("end_layer: ", end_layer)
 
     # check for objects in constant path segment (if provided)
     obj_in_const_path = False
@@ -115,42 +118,44 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
                     smallest_obj_dist = obj_dist
 
                 # check if constant path intersects with object
-                obstacle_ref = np.power(vehicle.get_radius() + graph_base.veh_width / 2, 2)
+                obstacle_ref = np.power(vehicle.get_radius() + graph_base.veh_width / 2, 2) # 차량과 내 차량 반지름 더해서 제곱(이거리보다 짧으면 충돌가능)
                 distances2 = np.power(const_path_seg[:, 0] - vehicle.get_pos()[0], 2) + np.power(
                     const_path_seg[:, 1] - vehicle.get_pos()[1], 2)
-                if any(distances2 <= obstacle_ref):
-                    obj_in_const_path = True
+                if any(distances2 <= obstacle_ref): # 상수 경로 구간의 어떤 점이라도 충돌 거리 이내로 들어가면.
+                    obj_in_const_path = True # 상수 구간 내에 객체가 있음.으로 판단.
 
     # -- DEFINE ACTION SETS TO BE GENERATED ----------------------------------------------------------------------------
     # NOTE: Ensure to first list the straight/follow options (if the planning horizon is reduced there, it will be also
     #       reduced for the other primitives
     # if an object is located in the constant path section (either overtaking or follow mode)
+    # 상수 경로 구간에 객체가 있거나(겹치거나, 근처이거나)
     if action_sets and (obj_in_const_path or object_besides_const_path):
         action_set_filters = ["planning_range"]
         action_set_goal_layer = end_layer
         action_set_names = ["follow"]
-
+        # 실제로 경로가 객체와 겹치지는 않지만, 이미 추월 옵션이 활성화되었을때
         # if currently in an overtaking maneuver-> offer straight with overtaking action ID
         if not obj_in_const_path and (last_action_id == "left" or last_action_id == "right"):
-            action_set_filters.append("default")
-            action_set_names.append(last_action_id)
-
+            action_set_filters.append("default") # 추월 유지하는 액션 추가
+            action_set_names.append(last_action_id) # 기존 액션 추가
+        # 추월중도 아니고, 장애물이 경로 근처에 있는 경우
         # if object only besides path, but no overtaking active -> offer left and right
         elif not obj_in_const_path:
             # array of all filters
             action_set_filters.extend(["default", "default"])
-            action_set_names.extend(["left", "right"])
-
+            action_set_names.extend(["left", "right"]) # 따라가기+추월 모두 활성화
+    # 경로 내에 장애물이 있어서 다양한 시나리오가 필요할 때 
     # if action sets enabled and a vehicle in the planning horizon
     elif action_sets and closest_obj_index is not None and closest_obj_node is not None:
         # -- generate node filters for each action set (overtake left, overtake right, follow) --
+        # 장애물의 오른쪽(더 큰 인덱스)에 있는 노드(경로)를 차단
         # overtake left
         block_set = list(range(closest_obj_node[1], graph_base.nodes_in_layer[closest_obj_node[0]]))
         graph_base.remove_nodes_filter(layer_ids=[closest_obj_node[0]] * len(block_set),
                                        node_ids=block_set,
                                        applied_filter="overtake_left_filter",
                                        base="default")
-
+        # 장애물의 왼쪽(더 작은 인덱스)에 있는 노드(경로)를 차단
         # overtake right
         block_set = list(range(0, closest_obj_node[1]))
         graph_base.remove_nodes_filter(layer_ids=[closest_obj_node[0]] * len(block_set),
@@ -185,6 +190,8 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
     action_set_red_len = dict()  # dict holding a True value for primitives with a reduced planning horizon
 
     mod_action_set_goal_layer = action_set_goal_layer
+
+    # 각 액션 세트("follow", "left", "right")에 대해 해당 액션에 맞는 필터와 이름을 짝지어서 반복
     for action_set_filter, action_set_name in \
             zip(action_set_filters, action_set_names):
 
@@ -199,25 +206,29 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
         #         continue
 
         loc_path_nodes_list = None
-
+        # 각 action set에 대하여 graph search
+        # 현재 action set에 대해 목표 레이어까지 경로 생성이 가능한지 반복적으로 시도.
+        # 경로가 안 나오면 목표 레이어를 하나씩 줄여가며 경로 생성 시도.
         while True:
             # check if start layer is equal to goal layer
             if mod_action_set_goal_layer == start_node[0]:
                 break
 
+            # 최소 비용 경로 탐색(목표 레이어에 대체 가능한 노드가 있는지 확인.)
             # Trigger graph search (if goal node exists)
             _, loc_path_nodes_list = graph_base.search_graph_layer(start_layer=start_node[0],
                                                                    start_node=start_node[1],
                                                                    end_layer=mod_action_set_goal_layer,
                                                                    max_solutions=max_solutions)
-
+            # print("end_layer: ", mod_action_set_goal_layer)
+            # print("loc_path_nodes_list: ", loc_path_nodes_list) # 빨간 실선
             # exit if solution is found or when planning a special maneuver (e.g. overtaking -> use same goal as s/f)
             if loc_path_nodes_list is not None or not (action_set_name == "follow" or action_set_name == "straight"):
                 break
             else:
                 mod_action_set_goal_layer -= 1
                 if mod_action_set_goal_layer < 0:
-                    mod_action_set_goal_layer = graph_base.num_layers - 1
+                    mod_action_set_goal_layer = graph_base.num_layers - 1 # follow나 straight은 경로가 나올 때까지 목표 레이어를 줄임 
 
         # If planning horizon was reduced (either by vehicles or end of open track reached)
         reduced_horizon = (mod_action_set_goal_layer != action_set_goal_layer
@@ -263,13 +274,17 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
                 # spline_coeff_mat = np.zeros((len(loc_path_nodes)-1, 8))
 
                 # Initialize list for all path components (since length is not beforehand, lists are faster than numpy)
-                spline_param_fuse = np.empty((0, 5))
-                dists = np.empty(0)
+                spline_param_fuse = np.empty((0, 5)) # 이 경로의 전체 좌표, 각도, 곡률, 길이 등 (각 구간별로 이어붙임)
+                dists = np.empty(0) # 각 spline 구간의 길이
 
                 previous_node = None
 
+                # [19, 1] -> [20, 3] 잇고, 다음 레이어끼리 잇는 과정.
                 # Assemble data from path segments in one array per path
                 for count, current_node in enumerate(loc_path_nodes):
+                    # print("current_node: ", current_node)
+                    # print("previous_node: ", previous_node)
+                    # print("---------------")
                     if previous_node is not None:
                         spline_coeff, spline_param, offline_cost, spline_length = \
                             graph_base.get_edge(start_layer=previous_node[0],

@@ -9,7 +9,7 @@ import trajectory_planning_helpers as tph
 
 
 def gen_edges(state_pos: np.ndarray, # 노드의 x, y, 방향 포함한 2D 배열
-              graph_base: graph_ltpl.data_objects.GraphBase.GraphBase, # 그래프 정보를 저장하는 객체(data_objects폴더 안 graphbase.py 안 GraphBse class로 하는)
+              graph_base: graph_ltpl.data_objects.GraphBase.GraphBase, # 그래프 정보를 저장하는 객체(data_objects폴더 안 graphbase.py 안 GraphBase class로 하는)
               stepsize_approx: float, # spline 샘플링할 때의 간격
               min_vel_race: float = 0.0, # 최소 허용 속도 비율(0~1) 
               closed: bool = True) -> None: # track이 닫힌 루프 형태인지 확인.
@@ -41,17 +41,17 @@ def gen_edges(state_pos: np.ndarray, # 노드의 x, y, 방향 포함한 2D 배�
     # ------------------------------------------------------------------------------------------------------------------
     # DEFINE EDGES AND SAMPLE SPLINE COEFFICIENTS ----------------------------------------------------------------------
     # ------------------------------------------------------------------------------------------------------------------
-    # raceline: refline을 중심으로 특정거리만큼 떨어진 새로운 경로
+    # raceline: global planner로 최적화한 raceline
     # calculate splines for race-line
     raceline_cl = np.vstack((graph_base.raceline, graph_base.raceline[0])) # 닫힌 경로를 위해 레이싱 라인의 첫 번째 점을 마지막에 추가.
-    x_coeff_r, y_coeff_r, _, _ = tph.calc_splines.calc_splines(path=raceline_cl) # 주어진 경로(raceline_cl)를 기반으로 x, y축 spline 계수 반환
+    x_coeff_r, y_coeff_r, _, _ = tph.calc_splines.calc_splines(path=raceline_cl) # 주어진 경로(raceline_cl)를 기반으로 x, y축 spline 계수 계산 
 
     tic = time.time()
 
     # loop over start_layers
     for i in range(len(state_pos)):
         tph.progressbar.progressbar(i, len(state_pos) - 1, prefix="Calculate splines")
-        start_layer = i
+        start_layer = i # 인접한 두 레이어 정의
         end_layer = i + 1
 
         # if requested end-layer exceeds number of available layers
@@ -69,15 +69,15 @@ def gen_edges(state_pos: np.ndarray, # 노드의 x, y, 방향 포함한 2D 배�
 
             # determine allowed lateral offset
             #  -> get distance between start node and (if possible) central (same index) goal node
-            d_start = state_pos[start_layer][0][start_n, :]
+            d_start = state_pos[start_layer][0][start_n, :] # d_start: start node의 x, y좌표
             d_end = state_pos[end_layer][0][max(0, min(len(state_pos[end_layer][0]) - 1, end_n_ref)), :]
-            dist = np.sqrt(np.power(d_end[0] - d_start[0], 2) + np.power(d_end[1] - d_start[1], 2))
+            dist = np.sqrt(np.power(d_end[0] - d_start[0], 2) + np.power(d_end[1] - d_start[1], 2)) # dist: 두 노드 간 거리(end노드와 start노드)
 
             #  -> get number of lateral steps based on distance, lateral resolution and allowed lateral offset p. m.
-            lat_steps = int(round(dist * graph_base.lat_offset / graph_base.lat_resolution))
+            lat_steps = int(round(dist * graph_base.lat_offset / graph_base.lat_resolution)) # lateral offset 범위 내에서 연결 가능한 end 노드의 개수
 
             # loop over nodes in end_layer (clipped to the specified lateral offset)
-            for end_n in range(max(0, end_n_ref - lat_steps),
+            for end_n in range(max(0, end_n_ref - lat_steps), # 연결 가능한 end 노드에 대해서 반복
                                min(len(state_pos[end_layer][0]), end_n_ref + lat_steps + 1)):
                 if (graph_base.raceline_index[end_layer] == end_n) and \
                         (graph_base.raceline_index[start_layer] == start_n):

@@ -111,12 +111,17 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
         print("\n#############################")
         raise ValueError("Provided raceline holds points outside the safety margin! "
                          "Reduce the vehicle width or adapt the race line (## SEE DETAILS ABOVE ##).")
-
+    print(f"graph_base.lat_resolution: {graph_base.lat_resolution}")
     # for each normvect
     for i in range(len(normvec_normalized)):
         # determine raceline index in array to be generated
         raceline_index = int(np.floor((track_width_left[i] - graph_base.veh_width / 2 + alpha[i])
                                       / graph_base.lat_resolution))
+        # print(f"track_width_left[i]: {track_width_left[i]}")
+        # print(f"graph_base.veh_width: {graph_base.veh_width}")
+        # print(f"alpha[i]: {alpha[i]}")
+        # print("-------------------------")
+        # print(f"raceline_index: {raceline_index}")
         raceline_index_array.append(raceline_index)
 
         # determine start point on normal relative to ideal raceline point
@@ -128,7 +133,7 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
         # transfer alphas to cartesian space
         temp_pos = np.repeat(graph_base.refline[i][None, :], len(temp_alphas), axis=0) + np.repeat(
             normvec_normalized[i][None, :], len(temp_alphas), axis=0) * temp_alphas[:, np.newaxis]
-
+        # print(f"temp_pos: {temp_pos}")
         # calculate psi for each coordinate
         if var_heading:
             # since psi is defined in [-pi <-> pi], we need to check, which heading path is the shortest
@@ -162,7 +167,7 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
 
     # store race line index array in graph base
     graph_base.raceline_index = raceline_index_array
-
+    print(f"state_pos: {state_pos}")
     return state_pos
 
 

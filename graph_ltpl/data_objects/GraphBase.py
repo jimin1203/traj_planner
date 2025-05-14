@@ -179,17 +179,20 @@ class GraphBase(object):
             if layer not in self.__virtual_layer_node.keys():
                 # add virtual goal node for given layer
                 vv = "v_l" + str(layer)
-                self.__g.add_vertex(name=vv,
+                ## 가상 노드 이름: vv
+                self.__g.add_vertex(name=vv, 
                                     layer_id=layer)
 
                 # store reference in dict
                 self.__virtual_layer_node[layer] = vv
-            else:
+            else: # 시뮬레이션 상 안 일어남.
+                # print("virtual_layer_node: ", self.__virtual_layer_node[layer])
                 vv = self.__virtual_layer_node[layer]
 
             # add edge between virtual and generated node
             offline_cost = abs(raceline_index - node_number) * self.lat_resolution * self.virt_goal_node_cost
-
+            # print("offline_cost: ", offline_cost)
+            # vv와 잇는 edge 추가
             self.__g.add_edge(source=str((layer, node_number)),
                               target=vv,
                               virtual=1,
@@ -902,6 +905,7 @@ class GraphBase(object):
             # Search in defined goal layer, if search does not result in a solution, check pts nxt to raceline
             # Search through nodes in end_layer until a solution is found or no node is left (computationally expensive)
             end_node = None
+            # 대체 가능한 노드 찾는 과정 
             while True:
                 if end_node is None:
                     end_node = self.raceline_index[end_layer]
