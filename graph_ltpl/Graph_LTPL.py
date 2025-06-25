@@ -159,7 +159,7 @@ class Graph_LTPL(object):
         self.__cut_index_pos = None
 
         # (NOTE: second "graph_ltpl" import required here)
-        import graph_ltpl
+        import graph_ltpl 
 
         if self.__visual_mode:
             # import plot handler when visualization is requested (avoid errors on devices with no connected screen)

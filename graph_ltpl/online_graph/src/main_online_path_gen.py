@@ -260,7 +260,7 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
         else:
             # Store node sequence in action set
             action_set_nodes[action_set_name] = loc_path_nodes_list
-
+            
             # init dict entry for action set (in order to allow multiple trajectories per set)
             action_set_node_idx[action_set_name] = []
             action_set_coeff[action_set_name] = []
@@ -344,6 +344,7 @@ def main_online_path_gen(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase
 
     # deactivate present filters
     graph_base.deactivate_filter()
-
+    # print(f"action_set_nodes ={action_set_nodes}")
+    # print(f"action_set_node_idx ={action_set_node_idx}")
     return (action_set_nodes, action_set_node_idx, action_set_coeff, action_set_path_param, action_set_red_len,
             closest_obj_index)

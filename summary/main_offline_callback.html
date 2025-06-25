@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>main&lowbar;offline&lowbar;callback &#xd568;&#xc218; &#xcf54;&#xb4dc; &#xbd84;&#xc11d;</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="main_offline_callback-함수-코드-분석">main_offline_callback 함수 코드 분석</h1>
+<h2 id="import-및-의존성">Import 및 의존성</h2>
+<pre><code class="language-python"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> configparser
+<span class="hljs-keyword">import</span> pickle
+<span class="hljs-keyword">import</span> os.path <span class="hljs-keyword">as</span> osfuncs
+<span class="hljs-keyword">import</span> hashlib
+<span class="hljs-keyword">import</span> logging
+
+<span class="hljs-comment"># custom modules</span>
+<span class="hljs-keyword">import</span> graph_ltpl
+</code></pre>
+<h2 id="md5-해시-함수">MD5 해시 함수</h2>
+<pre><code class="language-python">    new_base_generated = <span class="hljs-literal">False</span>
+    graph_base = <span class="hljs-literal">None</span>
+
+    calculated_md5 = md5(globtraj_param_path) + md5(graph_off_config_path)
+</code></pre>
+<ul>
+<li>MD5 해시 계산. 파일의 변경 여부를 확인하는데 사용. 변경되면, 새 그래프 생성.</li>
+<li>get the MD5-hash of all config files to recalculate whenever any file changed</li>
+</ul>
+<h2 id="기존-그래프가-있는지-확인">기존 그래프가 있는지 확인</h2>
+<pre><code class="language-python"><span class="hljs-comment"># 기존 그래프가 있다면 load</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> force_recalc <span class="hljs-keyword">and</span> osfuncs.isfile(graph_store_path):
+        f = <span class="hljs-built_in">open</span>(graph_store_path, <span class="hljs-string">&#x27;rb&#x27;</span>)
+        graph_base = pickle.load(f)
+        f.close()
+        logging.getLogger(<span class="hljs-string">&quot;local_trajectory_logger&quot;</span>).debug(<span class="hljs-string">&quot;Loaded database with &quot;</span> + <span class="hljs-built_in">str</span>(<span class="hljs-built_in">len</span>(graph_base.get_nodes())) + <span class="hljs-string">&quot; node and &quot;</span> + <span class="hljs-built_in">str</span>(<span class="hljs-built_in">len</span>(graph_base.get_edges())) + <span class="hljs-string">&quot; edges from file...&quot;</span>)
+</code></pre>
+<ul>
+<li>이전에 저장한 그래프(.pickle)이 있고 <code>force_recalc</code>이 False라면 저장된 그래프를 불러온다.</li>
+</ul>
+<h2 id="분기점-새-그래프-생성-조건-확인-및-생성">(분기점) 새 그래프 생성 조건 확인 및 생성</h2>
+<pre><code class="language-python">    <span class="hljs-keyword">if</span> force_recalc <span class="hljs-keyword">or</span> graph_base <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> calculated_md5 != graph_base.md5_params:
+        new_base_generated = <span class="hljs-literal">True</span>
+        <span class="hljs-keyword">if</span> force_recalc:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;Manually forced recalculation of graph! Skipped graph import from file!&quot;</span>)
+        <span class="hljs-keyword">if</span> graph_base <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> calculated_md5 <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> graph_base.md5_params:
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;MD5-Sum of any param-file does not match the one in the graph object! Triggered recalculation!&quot;</span>)
+
+        <span class="hljs-comment"># 그래프 설정 파일 로드</span>
+        graph_config = configparser.ConfigParser()
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> graph_config.read(graph_off_config_path):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">&#x27;Specified graph config file does not exist or is empty!&#x27;</span>)
+</code></pre>
+<ul>
+<li><code>force_recalc</code>= True(강제 재계산 On), <code>graph_base</code>가 있거나, param 해시가 불일치할 때 new graph를 생성한다.</li>
+<li>ConfigParser()를 이용하여 <code>graph_config</code>라는 .ini를 읽어주는 도우미를 정의한다.</li>
+</ul>
+<h2 id="global-trajectory-data-읽기">Global Trajectory Data 읽기</h2>
+<pre><code class="language-python">        refline, t_width_right, t_width_left, normvec_normalized, alpha, length_rl, vel_rl, kappa_rl \
+        = graph_ltpl.imp_global_traj.src.import_globtraj_csv.import_globtraj_csv(import_path=globtraj_param_path)
+
+        s = np.concatenate(([<span class="hljs-number">0</span>], np.cumsum(length_rl)))
+        xy = refline + normvec_normalized * alpha[:, np.newaxis]
+        raceline_params = np.column_stack((xy, kappa_rl, vel_rl))
+</code></pre>
+<ul>
+<li>경로 관련 데이터를 CSV file로부터 읽는다.</li>
+<li>읽은 데이터를 이용하여 s(누적 거리), xy(raceline 좌표), 여러 params을 변수에 저장.</li>
+</ul>
+<p><strong><a href="import_globtraj_csv.html">import_globtraj_csv</a></strong></p>
+<pre><code class="language-python">        closed = (np.hypot(xy[<span class="hljs-number">0</span>, <span class="hljs-number">0</span>] - xy[-<span class="hljs-number">1</span>, <span class="hljs-number">0</span>], xy[<span class="hljs-number">0</span>, <span class="hljs-number">1</span>] - xy[-<span class="hljs-number">1</span>, <span class="hljs-number">1</span>])
+                  &lt; graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;closure_detection_dist&#x27;</span>))
+
+        <span class="hljs-keyword">if</span> closed:
+            logging.getLogger(<span class="hljs-string">&quot;local_trajectory_logger&quot;</span>).debug(<span class="hljs-string">&quot;Input line is interpreted as closed track!&quot;</span>)
+            glob_rl = np.column_stack((s, np.vstack((raceline_params, raceline_params[<span class="hljs-number">0</span>, :]))))
+            
+        <span class="hljs-keyword">else</span>:
+            logging.getLogger(<span class="hljs-string">&quot;local_trajectory_logger&quot;</span>).debug(<span class="hljs-string">&quot;Input line is interpreted as _unclosed_ track!&quot;</span>)
+            glob_rl = np.column_stack((s[:-<span class="hljs-number">1</span>], raceline_params))
+</code></pre>
+<ul>
+<li>경로가 폐곡선인지 확인</li>
+</ul>
+<h2 id="곡률에-따라-node의-위치를-선정">곡률에 따라 node의 위치를 선정</h2>
+<pre><code class="language-python">        idx_array = graph_ltpl.imp_global_traj.src.variable_step_size. \
+            variable_step_size(kappa=kappa_rl,
+                               dist=length_rl,
+                               d_curve=graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;lon_curve_step&#x27;</span>),
+                               d_straight=graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;lon_straight_step&#x27;</span>),
+                               curve_th=graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;curve_thr&#x27;</span>),
+                               force_last=<span class="hljs-keyword">not</span> closed)
+</code></pre>
+<ul>
+<li>곡률구간이면 간격이 더 촘촘. 직선구간이면 간격이 널널.</li>
+</ul>
+<p><strong><a href="variable_step_size.html">variable_step_size</a></strong></p>
+<h2 id="선택된-index레이어에-따라-각-데이터를-추출">선택된 index(레이어)에 따라 각 데이터를 추출</h2>
+<pre><code class="language-python">        refline = refline[idx_array, :]
+        t_width_right = t_width_right[idx_array]
+        t_width_left = t_width_left[idx_array]
+        normvec_normalized = normvec_normalized[idx_array]
+        alpha = alpha[idx_array]
+        vel_rl = vel_rl[idx_array]
+        s_raceline = s[idx_array]
+
+        length_rl_tmp = []
+        <span class="hljs-keyword">for</span> idx_from, idx_to <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(idx_array[:-<span class="hljs-number">1</span>], idx_array[<span class="hljs-number">1</span>:]):
+            length_rl_tmp.append(np.<span class="hljs-built_in">sum</span>(length_rl[idx_from:idx_to]))
+
+        length_rl_tmp.append(<span class="hljs-number">0.0</span>)
+        length_rl = <span class="hljs-built_in">list</span>(length_rl_tmp)
+</code></pre>
+<ul>
+<li>layer 간격을 정했으므로(샘플링을 다시 한 것과 같다.) 이에 따라, refline 재정의
+<ul>
+<li><code>idx_array</code>에 해당하는 행만 추출. (python list면 불가하나 np.array이기 때문에 문법적으로 ok)</li>
+</ul>
+</li>
+<li>노드간 거리(length_rl) 재계산
+<ul>
+<li>인접한 두 노드(샘플링 후) 간 거리를 구한다.
+<ul>
+<li>idx_from 이상 idx_to 미만 구간의 모든 원소를 선택하여 sum</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="graphbase-객체-생성">GraphBase 객체 생성</h2>
+<pre><code class="language-python">        graph_base = graph_ltpl.data_objects.GraphBase.\
+            GraphBase(lat_offset=graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;lat_offset&#x27;</span>),
+                      num_layers=np.size(alpha, axis=<span class="hljs-number">0</span>),
+                      refline=refline,
+                      normvec_normalized=normvec_normalized,
+                      track_width_right=t_width_right,
+                      track_width_left=t_width_left,
+                      alpha=alpha,
+                      vel_raceline=vel_rl,
+                      s_raceline=s_raceline,
+                      lat_resolution=graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;lat_resolution&#x27;</span>),
+                      sampled_resolution=graph_config.getfloat(<span class="hljs-string">&#x27;SAMPLING&#x27;</span>, <span class="hljs-string">&#x27;stepsize_approx&#x27;</span>),
+                      vel_decrease_lat=graph_config.getfloat(<span class="hljs-string">&#x27;PLANNINGTARGET&#x27;</span>, <span class="hljs-string">&#x27;vel_decrease_lat&#x27;</span>),
+                      veh_width=graph_config.getfloat(<span class="hljs-string">&#x27;VEHICLE&#x27;</span>, <span class="hljs-string">&#x27;veh_width&#x27;</span>),
+                      veh_length=graph_config.getfloat(<span class="hljs-string">&#x27;VEHICLE&#x27;</span>, <span class="hljs-string">&#x27;veh_length&#x27;</span>),
+                      veh_turn=graph_config.getfloat(<span class="hljs-string">&#x27;VEHICLE&#x27;</span>, <span class="hljs-string">&#x27;veh_turn&#x27;</span>),
+                      md5_params=calculated_md5,
+                      graph_id=graph_id,
+                      glob_rl=glob_rl,
+                      virt_goal_node=graph_config.getboolean(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;virt_goal_n&#x27;</span>),
+                      virt_goal_node_cost=graph_config.getfloat(<span class="hljs-string">&#x27;COST&#x27;</span>, <span class="hljs-string">&#x27;w_virt_goal&#x27;</span>),
+                      min_plan_horizon=graph_config.getfloat(<span class="hljs-string">&#x27;PLANNINGTARGET&#x27;</span>, <span class="hljs-string">&#x27;min_plan_horizon&#x27;</span>),
+                      plan_horizon_mode=graph_config.get(<span class="hljs-string">&#x27;PLANNINGTARGET&#x27;</span>, <span class="hljs-string">&#x27;plan_horizon_mode&#x27;</span>),
+                      closed=closed)
+</code></pre>
+<ul>
+<li>위에서 준비한 값들을 이용하여 GraphBase 객체를 생성</li>
+</ul>
+<h2 id="node-skeleton-생성">node skeleton 생성</h2>
+<pre><code class="language-python">        state_pos = graph_ltpl.offline_graph.src.gen_node_skeleton. \
+            gen_node_skeleton(graph_base=graph_base,
+                              length_raceline=length_rl,
+                              var_heading=graph_config.getboolean(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;variable_heading&#x27;</span>))
+</code></pre>
+<ul>
+<li>노드들의 실제 [x, y]와 heading 등 생성</li>
+</ul>
+<p><strong><a href="gen_node_skeleton.html">gen_node_skeleton</a></strong></p>
+<h2 id="edge-생성">Edge 생성</h2>
+<pre><code class="language-python">        state_pos_arr = np.empty(shape=(<span class="hljs-built_in">len</span>(state_pos), <span class="hljs-number">2</span>), dtype=np.<span class="hljs-built_in">object</span>)
+        state_pos_arr[:] = state_pos
+
+        graph_ltpl.offline_graph.src.gen_edges.gen_edges(state_pos=state_pos_arr,
+                                                         graph_base=graph_base,
+                                                         stepsize_approx=graph_config.getfloat(<span class="hljs-string">&#x27;SAMPLING&#x27;</span>,
+                                                                                               <span class="hljs-string">&#x27;stepsize_approx&#x27;</span>),
+                                                         min_vel_race=graph_config.getfloat(<span class="hljs-string">&#x27;LATTICE&#x27;</span>, <span class="hljs-string">&#x27;min_vel_race&#x27;</span>),
+                                                         closed=closed)
+</code></pre>
+<ul>
+<li>실제 경로상의 연결, 속도, 곡선 등 다양한 조건을 고려하여 Edge를 생성한다.</li>
+</ul>
+<p><strong><a href="gen_edges.html">gen_edges</a></strong></p>
+<h2 id="prune-graph">prune Graph</h2>
+<pre><code class="language-python">        graph_ltpl.offline_graph.src.prune_graph.prune_graph(graph_base=graph_base,
+                                                             closed=closed)
+</code></pre>
+<ul>
+<li>도달 불가능한 노드와 엣지를 제거
+<ul>
+<li>쓸모없는(dead-end) 경로를 정리</li>
+</ul>
+</li>
+</ul>
+<p><strong><a href="prune_graph.html">prune_graph</a></strong></p>
+<h2 id="offline-cost-계산">Offline Cost 계산</h2>
+<pre><code class="language-python">        graph_ltpl.offline_graph.src.gen_offline_cost.gen_offline_cost(graph_base=graph_base,
+                                                                       cost_config_path=graph_off_config_path)
+</code></pre>
+<p><strong><a href="gen_offline_cost.html">gen_offline_cost</a></strong></p>
+<h2 id="그래프-필터링-및-graph를-pickle로-저장">그래프 필터링 및 graph를 .pickle로 저장</h2>
+<pre><code class="language-python">        graph_base.init_filtering()
+
+        <span class="hljs-comment"># store graph for later use</span>
+        f = <span class="hljs-built_in">open</span>(graph_store_path, <span class="hljs-string">&#x27;wb&#x27;</span>)
+        pickle.dump(graph_base, f)
+        f.close()
+</code></pre>
+<h2 id="분기점">(분기점)</h2>
+<pre><code class="language-python">    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">if</span> graph_logging_path <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            graph_logging_path = (graph_logging_path[:graph_logging_path.rfind(<span class="hljs-string">&#x27;/Graph_Objects/&#x27;</span>) + <span class="hljs-number">15</span>]
+                                  + <span class="hljs-built_in">str</span>(graph_base.graph_id) + <span class="hljs-string">&quot;.pckl&quot;</span>)
+</code></pre>
+<pre><code>- 이미 존재하는 graph가 있어서 load한다.
+</code></pre>
+<h2 id="log_path가-따로-주어지면-별도로-저장">log_path가 따로 주어지면 별도로 저장</h2>
+<pre><code class="language-python">    <span class="hljs-keyword">if</span> graph_logging_path <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> osfuncs.isfile(graph_logging_path):
+        f = <span class="hljs-built_in">open</span>(graph_logging_path, <span class="hljs-string">&#x27;wb&#x27;</span>)
+        pickle.dump(graph_base, f)
+        f.close()
+</code></pre>
+<pre><code class="language-python">    <span class="hljs-keyword">return</span> graph_base, new_base_generated
+</code></pre>
+
+            
+            
+        </body>
+        </html>

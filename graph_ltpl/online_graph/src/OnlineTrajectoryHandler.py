@@ -437,7 +437,7 @@ class OnlineTrajectoryHandler(object):
         if const_path_seg_exists:
             # 이전 경로~시작 노드까지의 모든 샘플링된 점의 파라미터 
             const_path_seg = self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:loc_path_start_idx + 1, :] 
-        
+        # 생성된 경로의 노드 리스트, 각 노드의 인덱스 등등 
         action_set_nodes, action_set_node_idx, action_set_coeff, action_set_path_param, action_set_red_len, \
             self.__closest_obj_index = (graph_ltpl.online_graph.src.main_online_path_gen.
                                         main_online_path_gen(graph_base=self.__graph_base,
@@ -470,7 +470,7 @@ class OnlineTrajectoryHandler(object):
                                 self.__last_action_set_path_param[action_id_sel][idx_sel_traj][:loc_path_start_idx, :],
                                 action_set_path_param[action_id][i])) # 원래 있던 path_param에 이어붙이기.
 
-                            # element length
+                            # element length 업데이트 
                             # Edge case: if cut index exactly at end of last planned action set member (length from
                             #            terminal coordinate to new spline missing - here set to "0" -> calc dist)
                             if np.size(self.__last_action_set_path_param[action_id_sel][idx_sel_traj], axis=0) == \
@@ -538,7 +538,6 @@ class OnlineTrajectoryHandler(object):
         self.__last_action_set_coeff = action_set_coeff
         self.__last_action_set_path_param = action_set_path_param
         self.__last_action_set_red_len = action_set_red_len
-
         # return characteristic parameters (e.g. for logging purposes)
         return self.__last_action_set_path_param, self.__start_node, self.__last_action_set_nodes, const_path_seg
 
@@ -586,7 +585,7 @@ class OnlineTrajectoryHandler(object):
                             s_array=s_last_path,
                             only_index=True)[1]
             cut_index = idx_nb[0]
-            # print("cut_index: ", cut_index)
+            # ("cut_index: ", cut_index)
 
             # -- calculate velocity cut index (including delay compensation) ------------------------------------------- 
             # get last index below delay estimate 
@@ -615,7 +614,7 @@ class OnlineTrajectoryHandler(object):
                     self.__last_action_set_node_idx[action_id_tmp][0]) < cut_index_pos) - 2, 0)
 
                 # Get corresponding coordinate cut index
-                # 해당 레이어의 시작 인덱스 계산 ? 
+                # 해당 레이어가 샘플링된 경로의 점의 index가 몇 번째인지.
                 cut_index_layer = self.__last_action_set_node_idx[action_id_tmp][0][cut_layer]
             else:
                 cut_layer = 0
@@ -630,6 +629,7 @@ class OnlineTrajectoryHandler(object):
 
         # update cut index memory
         self.__last_cut_idx = cut_index_pos - cut_index_layer
+
         # delay이후 도달할 경로 위치.
         return cut_index_pos, cut_layer, vel_plan, vel_course, acc_plan
 
@@ -680,7 +680,7 @@ class OnlineTrajectoryHandler(object):
         """
 
         # - Handle local gg input --------------------------------------------------------------------------------------
-        # if constant acceleration provided
+        # 상수 마찰이 주어졌을 때,
         if type(local_gg) is not dict:
             if type(local_gg) is not tuple or len(local_gg) != 2:
                 raise ValueError("Provided local_gg does not satisfy requested format! Read parameter documentation.")
@@ -697,8 +697,6 @@ class OnlineTrajectoryHandler(object):
                 for i in range(len(self.__last_action_set_path_param[action_id])):
                     local_gg[action_id].append(np.ones((self.__last_action_set_path_param[action_id][i].shape[0], 2))
                                                * gg_bounds)
-                # print("self.__last_action_set_path_param[action_id]: ", len(self.__last_action_set_path_param[action_id])) # 1
-                # print("local_gg: ", local_gg) # [[5, 5], [5, 5], [5, 5], [5, 5], [5, 5]...]
 
         # update trajectory base-ID(이전과 겹치지 않는 ID로 설정정)
         self.__traj_base_id += 10

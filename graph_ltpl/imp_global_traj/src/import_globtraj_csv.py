@@ -58,9 +58,9 @@ def import_globtraj_csv(import_path: str) -> tuple:
 
 # testing --------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    import_path = "/home/jimin1203/misys/traj_planner/inputs/traj_ltpl_cl/traj_ltpl_cl_berlin.csv"
+    import_path = "/home/jimin1203/misys/traj_planner/inputs/traj_ltpl_cl/traj_ltpl_cl_levine.csv"
     import_data = import_globtraj_csv(import_path)
-    print(import_data)
-    print(import_data[1].shape)
+    print(import_data[5])
+    print(f"shape: {import_data[5].shape}")
 
     pass

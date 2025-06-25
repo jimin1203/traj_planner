@@ -43,17 +43,20 @@ track_specifier = json.loads(track_param.get('DRIVING_TASK', 'track'))
 path_dict = {'globtraj_input_path': toppath + "/inputs/traj_ltpl_cl/traj_ltpl_cl_" + track_specifier + ".csv",
              'graph_store_path': toppath + "/inputs/stored_graph.pckl", # 안 쓰임.
              'ltpl_offline_param_path': toppath + "/params/ltpl_config_offline.ini",
-             'ltpl_online_param_path': toppath + "/params/ltpl_config_online.ini"
+             'ltpl_online_param_path': toppath + "/params/ltpl_config_online.ini",
+             'graph_log_id': toppath+"/output/graph_log_id.txt",
+             'log_path': toppath+"/output/"
              }
 
 # ----------------------------------------------------------------------------------------------------------------------
 # INITIALIZATION AND OFFLINE PART --------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------------------------
 
-# intialize graph_ltpl-class
+# intialize graph_ltpl-class    
 ltpl_obj = graph_ltpl.Graph_LTPL.Graph_LTPL(path_dict=path_dict,
                                             visual_mode=True,
                                             log_to_file=False)
+                                        
 
 # calculate offline graph
 ltpl_obj.graph_init() # ltpl_obj.graph_init()는 그래프를 초기화하는 함수
@@ -86,7 +89,7 @@ while True:
     # -- CALCULATE PATHS FOR NEXT TIMESTAMP ----------------------------------------------------------------------------
     ltpl_obj.calc_paths(prev_action_id=sel_action,
                         object_list=[])
-    print(f"traj_set[sel_action]: {sel_action}, {traj_set[sel_action]}")
+    # print(f"traj_set[sel_action]: {sel_action}, {traj_set[sel_action]}")
     # -- GET POSITION AND VELOCITY ESTIMATE OF EGO-VEHICLE -------------------------------------------------------------
     # (here: simulation dummy, replace with actual sensor readings)
     # 시뮬레이션이기 때문에 실제 센서가 아닌 시뮬레이션으로 차량의 위치와 속도를 추정

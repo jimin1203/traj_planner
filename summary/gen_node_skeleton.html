@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>gen&lowbar;node&lowbar;skeleton</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="gen_node_skeleton">gen_node_skeleton</h1>
+<h2 id="input">INPUT</h2>
+<p>centerline, track width, raceline에 기반하여 graph structure를 위한 node 뼈대 생성하는 함수
+여러 노드의 위치와 heading(각도)를 생성한다.</p>
+<pre><code class="language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">gen_node_skeleton</span>(<span class="hljs-params">graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
+                      length_raceline: <span class="hljs-built_in">list</span>,
+                      var_heading=<span class="hljs-literal">True</span>,
+                      closed: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">True</span></span>) -&gt; <span class="hljs-built_in">list</span>:
+</code></pre>
+<ul>
+<li>INPUT
+<ul>
+<li><code>graph_base</code></li>
+<li><code>length_racelin</code>e = <code>lenth_rl</code> global raceline에서 샘플링된 vertex들의 구간별 s 길이</li>
+<li>variable_heading : offline.ini에 기본 True로 저장되어 있다.</li>
+</ul>
+</li>
+</ul>
+<h2 id="트랙-폐쇄-여부에-따라-idx-지정">트랙 폐쇄 여부에 따라 idx 지정</h2>
+<pre><code class="language-python">    <span class="hljs-keyword">if</span> closed:
+        closed_idx = <span class="hljs-literal">None</span>
+    <span class="hljs-keyword">else</span>:
+        closed_idx = -<span class="hljs-number">1</span>
+</code></pre>
+<ul>
+<li>closed는 기본적으로 True값을 갖는다.</li>
+<li>트랙이 폐쇄형이면 전체 데이터를 사용하고, 아니라면 마지막 원소는 제외한 구간만 사용한다.</li>
+</ul>
+<h2 id="graph_base로부터-기본-정보-추출">graph_base로부터 기본 정보 추출</h2>
+<pre><code class="language-python">    normvec_normalized = graph_base.normvec_normalized
+    alpha = graph_base.alpha
+    track_width_right = graph_base.track_width_right
+    track_width_left = graph_base.track_width_left
+</code></pre>
+<ul>
+<li>graph_base에서 normal 벡터, alpha, 좌/우 트랙 폭 정보를 가져온다.</li>
+</ul>
+<h2 id="raceline-좌표-계산">raceline 좌표 계산</h2>
+<pre><code class="language-python">    raceline_points = graph_base.refline + normvec_normalized * alpha[:, np.newaxis]
+</code></pre>
+<ul>
+<li>centerline으로부터 alpha만큼 떨어진 위치가 raceline points이다.</li>
+</ul>
+<h2 id="raceline에서의-heading-계산">raceline에서의 heading 계산</h2>
+<pre><code class="language-python">    psi = tph.calc_head_curv_num.calc_head_curv_num(path=raceline_points,
+                                                    el_lengths=np.array(length_raceline[:closed_idx]),
+                                                    is_closed=closed)[<span class="hljs-number">0</span>]
+</code></pre>
+<ul>
+<li><span style="color:orange">global raceline의 psi를 쓰지 않는다는 점? 굳이 왜 다시 heading을 계산하는가.</span></li>
+</ul>
+<p><strong><a href="tph.calc_head_curv_num.html">tph.calc_head_curv_num</a></strong></p>
+<h2 id="track-좌우-경계선-및-heading-계산">track 좌/우 경계선 및 heading 계산.</h2>
+<pre><code class="language-python">    psi_bound_l = <span class="hljs-literal">None</span>
+    psi_bound_r = <span class="hljs-literal">None</span>
+    <span class="hljs-keyword">if</span> var_heading:
+        bound_r = graph_base.refline + normvec_normalized * np.expand_dims(track_width_right, <span class="hljs-number">1</span>)
+        bound_l = graph_base.refline - normvec_normalized * np.expand_dims(track_width_left, <span class="hljs-number">1</span>)
+
+        d = np.diff(np.vstack((bound_l, bound_l[<span class="hljs-number">0</span>])), axis=<span class="hljs-number">0</span>)
+        len_bl = np.hypot(d[:, <span class="hljs-number">0</span>], d[:, <span class="hljs-number">1</span>])
+
+        d = np.diff(np.vstack((bound_r, bound_r[<span class="hljs-number">0</span>])), axis=<span class="hljs-number">0</span>)
+        len_br = np.hypot(d[:, <span class="hljs-number">0</span>], d[:, <span class="hljs-number">1</span>])
+
+        psi_bound_l = tph.calc_head_curv_num.calc_head_curv_num(path=bound_l,
+                                                                el_lengths=np.array(len_bl[:closed_idx]),
+                                                                is_closed=closed)[<span class="hljs-number">0</span>]
+
+        psi_bound_r = tph.calc_head_curv_num.calc_head_curv_num(path=bound_r,
+                                                                el_lengths=np.array(len_br[:closed_idx]),
+                                                                is_closed=closed)[<span class="hljs-number">0</span>]
+</code></pre>
+<ul>
+<li><span style="color:orange">set_track_data()와 동일하다.</li>
+</ul>
+<h2 id="차량이-track-폭-내에-들어오는지-체크">차량이 track 폭 내에 들어오는지 체크</h2>
+<pre><code class="language-python">    state_pos = []
+    raceline_index_array = []
+
+    margin_left = <span class="hljs-built_in">min</span>(track_width_left - graph_base.veh_width / <span class="hljs-number">2</span> + alpha)
+    margin_right = <span class="hljs-built_in">min</span>(track_width_right - graph_base.veh_width / <span class="hljs-number">2</span> - alpha)
+    <span class="hljs-keyword">if</span> (margin_left &lt; <span class="hljs-number">0.0</span>) <span class="hljs-keyword">or</span> (margin_right &lt; <span class="hljs-number">0.0</span>):
+        max_veh_width = graph_base.veh_width + <span class="hljs-built_in">min</span>(margin_left, margin_right) * <span class="hljs-number">2</span>
+</code></pre>
+<ul>
+<li>만약 차량이 track 내에 들어오지 못하면 print로 에러메시지 나타냄.(여기서는 생략했음)</li>
+</ul>
+<h2 id="각-centerline-point마다-수행">각 centerline point마다 수행</h2>
+<pre><code class="language-python">    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-built_in">len</span>(normvec_normalized)):
+        raceline_index = <span class="hljs-built_in">int</span>(np.floor((track_width_left[i] - graph_base.veh_width / <span class="hljs-number">2</span> + alpha[i])
+                                      / graph_base.lat_resolution))
+        s = alpha[i] - raceline_index * graph_base.lat_resolution
+        temp_alphas = np.arange(s, track_width_right[i] - graph_base.veh_width / <span class="hljs-number">2</span>, graph_base.lat_resolution)
+        temp_pos = np.repeat(graph_base.refline[i][<span class="hljs-literal">None</span>, :], <span class="hljs-built_in">len</span>(temp_alphas), axis=<span class="hljs-number">0</span>) + \
+                   np.repeat(normvec_normalized[i][<span class="hljs-literal">None</span>, :], <span class="hljs-built_in">len</span>(temp_alphas), axis=<span class="hljs-number">0</span>) * temp_alphas[:, np.newaxis]
+</code></pre>
+<ul>
+<li><code>raceline_index</code> 계산: width_lef에서 차량 폭/2와 alpha를 반영해 lateral로 몇 개의 sample을 둘지 계산</li>
+<li><code>s</code>: 샘플링 시작점 offset 계산</li>
+<li><code>temp_alphas</code>: 왼쪽 경계~오른쪽 경계까지 일정 간격(lat_resolution)으로 샘플링</li>
+<li><code>temp_pos</code>: 각 포인트의 실제 좌표 계산 / centerline에서 alpha만큼 normal vector방향으로 이동하여 계산한다.</li>
+</ul>
+<p><img src="file:////home/jimin1203/misys/traj_planner/summary/%EA%B7%B8%EB%A6%BC1.png" alt="이미지"></p>
+<h2 id="각-노드의-heading-설정">각 노드의 heading 설정</h2>
+<pre><code class="language-python">        <span class="hljs-keyword">if</span> var_heading:
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">abs</span>(psi_bound_l[i] - psi[i]) &lt; np.pi:
+                psi1 = np.linspace(psi_bound_l[i], psi[i], num=raceline_index + <span class="hljs-number">1</span>)[:-<span class="hljs-number">1</span>]
+            <span class="hljs-keyword">else</span>:
+                temp_bl = psi_bound_l[i] + <span class="hljs-number">2</span> * np.pi * (psi_bound_l[i] &lt; <span class="hljs-number">0</span>)
+                temp_psi = psi[i] + <span class="hljs-number">2</span> * np.pi * (psi[i] &lt; <span class="hljs-number">0</span>)
+                psi1 = tph.normalize_psi.normalize_psi(np.linspace(temp_bl, temp_psi, num=raceline_index + <span class="hljs-number">1</span>)[:-<span class="hljs-number">1</span>])
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">abs</span>(psi_bound_r[i] - psi[i]) &lt; np.pi:
+                psi2 = np.linspace(psi[i], psi_bound_r[i], num=<span class="hljs-built_in">len</span>(temp_alphas) - raceline_index)
+            <span class="hljs-keyword">else</span>:
+                temp_br = psi_bound_r[i] + <span class="hljs-number">2</span> * np.pi * (psi_bound_r[i] &lt; <span class="hljs-number">0</span>)
+                temp_psi = psi[i] + <span class="hljs-number">2</span> * np.pi * (psi[i] &lt; <span class="hljs-number">0</span>)
+                psi2 = tph.normalize_psi.normalize_psi(np.linspace(temp_psi, temp_br, num=<span class="hljs-built_in">len</span>(temp_alphas) - raceline_index))
+            temp_psi = np.append(psi1, psi2)
+        <span class="hljs-keyword">else</span>:
+            temp_psi = np.repeat(psi[i], <span class="hljs-built_in">len</span>(temp_alphas), axis=<span class="hljs-number">0</span>)
+</code></pre>
+<ul>
+<li>선형보간으로 하여 각 노드에서의 heading을 조정한다. 2*pi를 기준으로 wrap-around 처리</li>
+</ul>
+<h2 id="node-정보-저장">node 정보 저장</h2>
+<pre><code class="language-python">        <span class="hljs-comment"># store info in local variable</span>
+        <span class="hljs-built_in">list</span>.append(state_pos, [temp_pos, temp_psi])
+
+        <span class="hljs-comment"># store node information in data object</span>
+        graph_base.add_layer(layer=i,
+                             pos_multi=temp_pos,
+                             psi=temp_psi,
+                             raceline_index=raceline_index)
+</code></pre>
+<ul>
+<li>각 포인트별로 [좌표, heading] 쌍을 <code>state_pos</code>에 저장</li>
+<li>graph_base 객체에도 node 정보를 저장한다.</li>
+</ul>
+<p><strong><a href="graph_base.html">graph_base.add_layer</a></strong></p>
+<h2 id="return값">return값</h2>
+<pre><code class="language-python">    graph_base.raceline_index = raceline_index_array
+    <span class="hljs-keyword">return</span> state_pos
+</code></pre>
+<ul>
+<li>모든 노드 정보(<code>state_pos</code>)를 return한다.</li>
+</ul>
+
+            
+            
+        </body>
+        </html>

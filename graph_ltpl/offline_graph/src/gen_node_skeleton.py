@@ -84,7 +84,7 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
         psi_bound_l = tph.calc_head_curv_num.calc_head_curv_num(path=bound_l,
                                                                 el_lengths=np.array(len_bl[:closed_idx]),
                                                                 is_closed=closed)[0]
-
+        print(psi_bound_l)
         psi_bound_r = tph.calc_head_curv_num.calc_head_curv_num(path=bound_r,
                                                                 el_lengths=np.array(len_br[:closed_idx]),
                                                                 is_closed=closed)[0]
@@ -111,10 +111,11 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
         print("\n#############################")
         raise ValueError("Provided raceline holds points outside the safety margin! "
                          "Reduce the vehicle width or adapt the race line (## SEE DETAILS ABOVE ##).")
-    print(f"graph_base.lat_resolution: {graph_base.lat_resolution}")
+    # print(f"graph_base.lat_resolution: {graph_base.lat_resolution}")
     # for each normvect
     for i in range(len(normvec_normalized)):
         # determine raceline index in array to be generated
+        # np.floor: 주어진 숫자를 내림하여 정수로 반환하는 함수 
         raceline_index = int(np.floor((track_width_left[i] - graph_base.veh_width / 2 + alpha[i])
                                       / graph_base.lat_resolution))
         # print(f"track_width_left[i]: {track_width_left[i]}")
@@ -128,7 +129,7 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
         s = alpha[i] - raceline_index * graph_base.lat_resolution
 
         # spread points on normal with defined lateral offset and calculated starting point
-        temp_alphas = np.arange(s, track_width_right[i] - graph_base.veh_width / 2, graph_base.lat_resolution)
+        temp_alphas = np.arange(s, track_width_right[i] - graph_base.veh_width / 2, graph_base.lat_resolution) # 첫번째 인자: 가장 왼쪽 alpha, 두번째 인자: 가장 오른쪽 alpha 
 
         # transfer alphas to cartesian space
         temp_pos = np.repeat(graph_base.refline[i][None, :], len(temp_alphas), axis=0) + np.repeat(
@@ -167,8 +168,8 @@ def gen_node_skeleton(graph_base: graph_ltpl.data_objects.GraphBase.GraphBase,
 
     # store race line index array in graph base
     graph_base.raceline_index = raceline_index_array
-    print(f"state_pos: {state_pos}")
-    return state_pos
+    # print(f"state_pos: {state_pos}")
+    return state_pos # state_pos[i]: i번째 layer의 모든 node 위치와 방향이 들어 있음. 
 
 
 def vec_angle(v1, v2):
